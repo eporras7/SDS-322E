@@ -1,0 +1,243 @@
+---
+title: "An Analysis of Team Style of Play and Team Strength Indices in FA Women's Super League During the 2020-2021 Season"
+output:
+  html_document: default
+  pdf_document: default
+date: "2023-10-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+In 1977, Bill James began self-publishing an annual booked called *The Bill James Baseball Abstract*, sports have seen a big scramble toward statistical insights and innovations in order to garner any competitive advantage. Today, sports is a domain where the data is readily available and can offer a look into the strategies teams employ. Over the years, soccer has attempted to catch up with the statistical innovations that sports like baseball popularized. Today, there are some companies who act as data consultants for soccer teams by providing access to this data. The biggest company in this space is StatsBomb, who has worked with teams such as Austin FC, AS Roma, Borussia Dortmund, and Newcastle United. Their models can track a player's actions over the course of a game, such as a player's range of passing, post-shot xG, and pressures by player and team. A link to this data can be found [here](https://github.com/statsbomb/open-data/blob/master/data/matches/37/4.jsonLinks).
+
+There has been a similar statistical revolution in the realm of sports betting and game predictions. With the advent of new and available data, betting agencies and bettors alike can analyze team, player, and season data to improve their own positions. One such example is Nate Silver, the founder of FiveThirtyEight, who is most known for creating an election forecast system that successfully predicted the outcomes in 49 of the 50 states in the 2008 US presidential election. While most of Silver's statistical work is in the political sphere, he and his team at FiveThirtyEight have created some sports models too. One such example is the Club Soccer Prediction model, which estimates a team's overall strength based on previous performance and market value. These estimators often match popular sentiment on potential outcomes between two competing teams. A link to this data can be found [here](https://data.fivethirtyeight.com/#soccer-spiLinks).
+
+For the StatsBomb data, I will make use of a table called Matches, which keeps track of all matches in the FA Women's Super League from 2018 to 2021. A unique row in this dataset contains info such as match_id, match date, the score, competition, season, and data frames for both managers and players (which contains info as name, date of birth, and nationality). I will also use StatsBombData, which contains data for every single action in a given match. For the FiveThirtyEight data, I will look at FA Women's Super League matches since the model was created during the 2017. A unique row in 'spi_matches' represents a game played between two teams in one of the top leagues, with both actual and expected team performance and strength metrics. 
+
+I expect to see a lot of trends in this data. Teams that are deemed to be strongly typically have more possession of the ball and will spend more time in the opponent's half of the field. Mechanically, players who play for teams with more possession will attempt and complete more passes than average, as well as shoot more successful shots on goal. After taking these expectations into account, teams will adjust their playing strategy according to the likelihood that they expect to win a particular game. 
+
+My research question aims to determine the relationship between different styles of play and overall team strength indices over the course of the season. I start by looking at the distribution of SPI ratings during the season, then explore the relationship between volume and efficiency on offense (i.e. shots per game vs. goals per game). Finally, I examine the relationship between shots on goal and SPI. 
+
+## Joining/Merging
+
+Here, I have the competitions that are publicly available and filter to only include the 2020/21 FA Women's Super League. Then, I pull all the matches from this competition and create a dataframe called StatsBombData to hold all of this information. Finally, I extract all player interactions for the matches in this season with the 'allclean' function. 
+
+```{r}
+library(tidyverse)
+# install.packages("devtools") 
+# install.packages("remotes") 
+# remotes::install_version("SDMTools", "1.1-221")
+
+library(StatsBombR)
+
+# restrict data to only FAWSL in the 2020-21 season
+Comp <- FreeCompetitions() %>%
+  filter(competition_id == 37 & season_name == "2020/2021")
+
+# grab all matches from FAWSL 2020-21 season
+Matches <- FreeMatches(Comp)
+
+# pull all player data from FAWSL 2020-21 season and save under new dataframe
+StatsBombData <- free_allevents(MatchesDF = Matches, Parallel = T)
+
+# clean the player data
+StatsBombData = allclean(StatsBombData)
+```
+
+Similarly, I filter by year and competition to only include games in the 2020-21 FA Women's Super League season. I then save it to a new dataframe called 'fawsl_538.' I also recode the team matches to match the teams from the Matches dataset for the upcoming join.
+
+```{r}
+# load 538 data into environment
+spi_matches <- read_csv("spi_matches.csv")
+
+# create new dataset filtered by season and league, and recoding teams to join with StatsBomb data
+fawsl_538 <- spi_matches %>%
+                filter(league_id == 7921 & season == 2020) %>%
+                mutate(adj_team1 = recode(team1, 
+                    "Arsenal Women" = "Arsenal WFC", 
+                    "Birmingham City" = "Birmingham City WFC", 
+                    "Brighton & Hove Albion" = "Brighton & Hove Albion WFC",
+                    "Bristol Academy" = "Bristol City WFC", 
+                    "Chelsea FC Women" = "Chelsea FCW", 
+                    "Everton Ladies" = "Everton LFC", 
+                    "Manchester City Women" = "Manchester City WFC", 
+                    "Manchester United Women" = "Manchester United", 
+                    "Reading" = "Reading WFC", 
+                    "Tottenham Women" = "Tottenham Hotspur Women", 
+                    "West Ham United Ladies" = "West Ham United LFC"), 
+                       adj_team2 = recode(team2,
+                    "Arsenal Women" = "Arsenal WFC", 
+                    "Birmingham City" = "Birmingham City WFC", 
+                    "Brighton & Hove Albion" = "Brighton & Hove Albion WFC",
+                    "Bristol Academy" = "Bristol City WFC", 
+                    "Chelsea FC Women" = "Chelsea FCW", 
+                    "Everton Ladies" = "Everton LFC", 
+                    "Manchester City Women" = "Manchester City WFC", 
+                    "Manchester United Women" = "Manchester United", 
+                    "Reading" = "Reading WFC", 
+                    "Tottenham Women" = "Tottenham Hotspur Women", 
+                    "West Ham United Ladies" = "West Ham United LFC"))
+```
+
+Then, I merge the match data from 'Matches' from StatsBomb and 'fawsl_538' to obtain the team strength, win probabilities, and match importance metrics from FiveThirtyEight. Since StatsBomb codes date as a <character>, I make a new variable which stores the date in Date format for the merge to be successful. After the merge, I drop redundant values between datasets. 
+
+```{r}
+# make new variable storing date in Date format and joining by game played between two teams on a particular day
+fawsl_2020_2021 <- Matches %>%
+                       mutate(adj_date = as.Date(match_date)) %>%
+                       left_join(fawsl_538, by = join_by(adj_date == date, 
+                                                         home_team.home_team_name == adj_team1, 
+                                                         away_team.away_team_name == adj_team2)) %>%
+                       select(-c(adj_date:team2))
+```
+
+Before joining, there were 131 observations in Matches and 132 observations in fawsl_538. There are 39 variables in Matches that are not in fawsl_538, and there are 22 variables in fawsl_538 that are not in Matches. There are 5 IDs (date, season, league, home team, away team) in common between the two datasets. After joining, there were 2 IDs (season, league) that got dropped. One observations from Matches got dropped when joining. This is because the Tottenham Hotspur vs. Birmingham City game on March 22, 2020 got officially cancelled due to COVID, so there is no official result. 
+
+I then do a second join to obtain game data for all players in that given season, as well as team formations, team strength, and the final result. 
+```{r}
+# merge player data into season data by match_id
+fawsl_data <- StatsBombData %>%
+                left_join(fawsl_2020_2021, by = join_by(match_id == match_id))
+```
+
+Before joining, there are 131 observations in fawsl_2020_2021 and 443304 observations in StatsBombData. There are three observations in common between the two datasets (match_id, competition_id, season_id). There are 180 variables in StatsBombData that are not directly contained in fawsl_2020_2021, and there are 56 variables in fawsl_2020_2021 not in StatsBombData. No observations get dropped, but one concern that I have is the runtime of the data due to the large number of observations. 
+
+## Tidying/Wrangling and Visualization #1: Shots per Game vs. Team Strength Indices
+
+First, I examine the average SPI ratings for each team in the 2020-21 FAWSL Season, which will give us a good idea of the overall parity of the league. To do so, I use_pivot to elongate the dataset, where I distinguish between the type of team using the variable HA(Home/Away). Inspiration for this block of code comes from [here](https://stackoverflow.com/questions/62740230/computing-points-for-a-football-team). Based on whether the team was home or away, I assign the correct SPI value to a team for a particular match. After grouping by team, I then calculate the seasonal SPI and filter by the last matchday (since everyone plays on the last day of the season) so I could obtain didn't have repeat seasonal SPIs when I do further analysis.
+
+```{r}
+# find average SPI rating for each team in 2020-21 FAWSL season
+SPI_data = fawsl_data %>%
+  distinct(match_id, .keep_all = TRUE) %>%
+  select(home_team.home_team_name, away_team.away_team_name, spi1, spi2, match_date, match_id) %>%
+  # R had trouble accepting columns with nested information, so created placeholder variables for team names
+  mutate(team1 = home_team.home_team_name, 
+         team2 = away_team.away_team_name) %>%
+  select(-c(home_team.home_team_name, away_team.away_team_name)) %>%
+  pivot_longer("team1":"team2", 
+                names_to = "HA", 
+                values_to = "Team") %>%
+  mutate(SPI = ifelse(HA == "team1", spi1, spi2)) %>%
+  select(-c(spi1, spi2)) %>%
+  group_by(Team) %>%
+  mutate(Average_SPI = sum(SPI)/n_distinct(match_id)) %>%
+  arrange(Team) %>%
+  # since every team plays on the last day of the season, it was an easy way to keep only one observation with a seasonal SPI rating
+  filter(match_date == "2021-05-09")
+
+SPI_data  
+summary(SPI_data$Average_SPI)
+```
+
+Based on the summary statistics, it appears that there is great variation on average SPI ratings from the season. It also appears that the distribution is skewed right, since the mean SPI rating is 5 points higher than the median SPI rating. This is clearly evident in the histogram on SPI ratings from the season, which is created below.
+
+```{r}
+# create histogram of season SPI ratings in 2020-21 FAWSL season
+ggplot(data = SPI_data, 
+         aes(x = Average_SPI)) +
+  geom_histogram(bins = 5) +
+  labs(title = "Distribution of Average SPI Rating in 2020-21 FAWSL Season") +
+  theme_test()
+```
+Since SPI is an indicator of a team's overall strength, this histogram shows that there are 3 teams in the division that are heads and shoulders better (on average) than their competitors. On the other hand, there are 8 teams that appear to be of similar quality. This implies that matches between two teams on this end of the distribution are tight matches. 
+
+## Wrangling and Visualiziation Case #2: Shots Per Game
+
+After we get this visualization, I look at the number of shots and number of goals a team scores per game to get a better idea of a team's offensive volume and efficiency. 
+
+```{r}
+# save shots per game and goals per game by team in descending order as new dataframe
+# NOTE: comes from StatsBomb R Guide Data Use Case #1
+shots_goals = fawsl_data %>%
+                group_by(team.name) %>%
+                summarise(shots = sum(type.name == "Shot", na.rm = TRUE)/n_distinct(match_id), 
+                          goal = sum(shot.outcome.name == "Goal", na.rm = TRUE)/n_distinct(match_id)) %>%
+                arrange(desc(goal))
+
+shots_goals
+```
+
+```{r}
+library(ggplot2)
+
+# create barplot of shots per game by FAWSL team
+# NOTE: comes from StatsBomb R Guide Data Use Case #2
+ggplot(data = shots_goals, 
+              aes(x = reorder(team.name, shots), y = shots)) +
+        geom_bar(stat = "identity", width = 0.5) + 
+        labs(x = "Team",
+             y = "Shots", 
+             title = "Shots per Game in 2020-21 FAWSL Season") +
+        theme(axis.title.y = element_blank()) +
+        scale_y_continuous(expand = c(0,0)) +
+        coord_flip() +
+        theme_minimal()
+```
+
+The resulting summary statistics and visualization on shots per game show that it appears that there are four teams with 15+ shots per game (Chelsea, Manchester City, Manchester United, and Arsenal). On the other hand, there are five teams with less than 10 shots per game (Brighton & Hove Albion, Tottenham Hotspur, Bristol City, Aston Villa, Birmingham City). On the whole, this suggests that the teams with more than 15 shots per game are more attacking teams, while those with fewer than 10 shots per game are inherently defensive. However, this says nothing about their efficiency, only about their willingness to take a shot while on the attack. Just because a team shoots a shot in a game doesn't necessarily mean that those are on target or even result in goals. this next plot compares the volume and efficiency of a team when they go on the offensive.
+```{r}
+library(ggplot2)
+
+# create scatterplot of shots per game and goals per game for FAWSL teams
+ggplot(data = shots_goals, 
+              aes(x = shots, y = goal, color = team.name)) +
+        geom_point() + 
+        labs(x = "Shots per Game",
+             y = "Goals Per Game", 
+             title = "Relationship betwen Shots per Game and Goals per Game",
+             subtitle = "2020-21 FAWSL Season",
+             color = "Team") +
+        scale_x_continuous(breaks = seq(0, 20, by = 5))
+```
+
+There is a positive correlation between shots per game and goals per game. Here, you can see three two distinct types of teams: high shots, high amount of goals (Arsenal, Chelsea, Manchester City) and low shots, low amount of goals (Birmingham City, Aston Villa, Bristol City, Tottenham Hotspur, West Ham United, Brighton & Hove Albion). This is to be expected; after all, shooting more shots gives teams more opportunities to score goals. It may also imply that there are two competing ideologies that may lead to one type of game flow, which may happen more often when someone goes up against a team with a vaunted attack.
+
+Interestingly enough, Manchester United and Everton do not fit cleanly into one of these two tranches. Manchester United, with a number of shots per game and a modest goals per game return, may possess a lot of the ball, but are not clinical enough with their chances. Everton, despite taking 6 less shots per game than Manchester United, have a goal return that is comparable to Manchester United by playing more in transition. The presence of these sorts of teams offers interesting questions about the average positions taken by a team over the course of a typical game and their overall style of play. 
+
+## Returning to the Research Question
+
+Finally, I examine the relationship between shots per game and SPI ratings from the year. First, I join the datasets containing both of the variables of interest. Then, I create a scatterplot of shots per game and SPI by team.
+```{r}
+# merge player data into season data by match_id
+research_question <- SPI_data %>%
+                left_join(shots_goals, by = join_by(Team == team.name))
+
+# create scatterplot of shots per game and goals per game for FAWSL teams
+ggplot(data = research_question, 
+              aes(x = shots, y = Average_SPI, color = Team)) +
+        geom_point() + 
+        labs(x = "Shots per Game",
+             y = "Average SPI Rating", 
+             title = "Relationship between Shots per Game and Average SPI Rating",
+             subtitle = "2020-21 FAWSL Season",
+             color = "Team") +
+        theme_classic()
+```
+
+There is a positive correlation between shots per game and seasonal SPI rating, and this looks eerily similar to the scatterplot found in Case #2. That is, teams with a high amount of shots per game also have a high seasonal SPI rating. Likewise, teams with a lot amount of shots per game have a lower SPI rating (although there is more variation within this cluster). 
+
+The difference between these two graphs, however, is how they treat teams that don't fit cleanly into those two groups (Everton, Manchester United). While Everton could convert the few chances they create (at least compared to Manchester United) on a more regular basis, they have a fairly low SPI rating over the course of the season. On the other hand, Manchester United gets treated more favorably in the SPI rating system. While not on the level of Chelsea, Manchester City, or Arsenal, this graph shows that, even as the clear fourth best team in the division, are unlike the other eight teams in the division in terms of quality.
+
+## Discussion
+
+Based on the above, there is a clear relationship between style of play and overall strength indices such as SPI. The scatterplot in case #2 shows that the teams who end up having a high amount of shots per game also end up having more goals per game than the other teams (and vice versa). Finally, the scatterplot between shots per game and seasonal SPI rating shows a positive correlation. That is, teams that shoot more per game also are deemed to be better teams to most predictive models. 
+
+In this project, I found it difficult to use even the simplest of variables in the StatsBomb dataset, like team name, because it contained nested data about managers and players linked with it. This is something that I had not encountered, either in this class or previous ones. While I worked around this issue by creating a new variable that contained the exact same information as the variable giving me issues, I suspect that there may be an easier way to handle the issue even if I had stuck to only one of the datasets. 
+
+When I had these sorts of projects in previous classes, the datasets were already handed to us cleaned and tidied and oftentimes came with hints to help us out. During this process, I learned how tedious some of the beginning steps are. Nonetheless, I am glad to have taken a topic that I am interested in and taken it through the entire process from looking for data to answering a research question, finding (or confirming) some interesting insights from data that I have wanted to work with for a while now.
+
+Finally, I would like to thank the data team at StatsBomb and FiveThirtyEight for encouraging and releasing public code for aspiring data scientists to explore. It has been a joy to explore these concepts on a subject I love, even if it did give me a bit of trouble at times.
+
+## References
+
+Source 1: https://github.com/statsbomb/open-data/blob/master/data/matches/37/4.jsonLinks to an external site. 
+
+Note: The StatsBomb R Guide I reference continually can be found [here](https://statsbomb.com/wp-content/uploads/2021/11/Working-with-R.pdf). 
+
+Source 2: https://data.fivethirtyeight.com/#soccer-spiLinks to an external site.
+
