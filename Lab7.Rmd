@@ -1,0 +1,192 @@
+---
+title: "Lab 7"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, error = FALSE,
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options = list(max.print=100))
+
+# Edit the file starting below
+```
+
+### Enter the names of the group members here: EJ Porras, Michael Minton, YJ Chung
+
+**This assignment is due by the end of the day. Only one student in the group submits a pdf file on Gradescope.**
+
+*For all questions, include the R commands/functions that you used to find your answer (show R chunk). Answers without supporting code will not receive credit. Write full sentences to describe your findings.*
+
+In this lab, you will explore one of the published novels of Jane Austen, accessible through the `janeaustenr` package. Let's first install it:
+
+```{r, eval=FALSE}
+# Install the janeaustenr package (Note, eval=FALSE means this code chunk is not
+# submitted when knitting). You should run this command in the console ONCE. You
+# do not need to run it again after the package is installed.
+install.packages("janeaustenr")
+```
+
+Then load that package and other necessary packages for today:
+
+```{r, warning=FALSE}
+# Remember to install new packages with install.packages("name") in the console
+# if you haven't already done that.
+library(janeaustenr)
+library(tidyverse)
+library(tidytext)
+library(wordcloud)
+library(RColorBrewer)
+```
+
+Let's take a quick look at the books available:
+
+```{r}
+# Take a quick look
+austen_books() %>%
+  group_by(book) %>%
+  summarize(nb_lines = n())
+```
+
+The goal of the lab is to conduct some sentiment analysis for one of these books.
+
+------------------------------------------------------------------------
+
+### Question 1: (6 pts)
+
+After calling all books with `austen_books()`, choose to keep **only one of the books**.
+
+Then let's do some cleaning:
+
+-   create a variable `chapter` with the following structure: `mutate(chapter = cumsum(str_detect(text, "")))`. Fill in the `""` with a regular expression to **find the lines mentioning the chapter sections**. *Hint: Take a look at how the chapter sections appear in your data first.*
+
+-   get rid of the lines for chapter 0,
+
+-   get rid of the empty lines,
+
+-   get rid of the lines showing the chapter sections. *Hint: str_detect() with regex would be useful again!*. Note: some novels also have volumes. Get rid of those lines as well.
+
+Save the resulting dataset as an object called `book`.
+
+```{r}
+# create variable 'book' with added chapter #s and removed empty lines and chapter headings
+book <- austen_books() %>%
+          filter(book == "Pride & Prejudice") %>%
+          mutate(chapter = cumsum(str_detect(text, "Chapter"))) %>%
+          filter(chapter != 0) %>%
+          filter(text != "") %>%
+          filter(str_detect(text, "Chapter") == FALSE)
+```
+
+How many chapters were contained in the `book` you chose?
+
+```{r}
+# find number of chapters in Pride & Prejudice
+book %>%
+  summarise(n_distinct(chapter))
+```
+
+**We saved *Pride and Prejudice* as the book of our choosing. After doing the above, we found that there are 61 chapters contained in *Pride and Prejudice*.**
+
+------------------------------------------------------------------------
+
+### Question 2: (3 pts)
+
+Next, we will split each line into words (this is sometimes called "tokenizatin"). One very convenient function to do this is `unnest_tokens(word, text)` (we do not need to specify the token as the default token is `words`). What are the 10 most common words in the book you chose? Do they reveal any pattern?
+
+```{r}
+# find the 10 most common words in Pride & Prejudice
+book %>%
+  unnest_tokens(word, text) %>%
+  group_by(word) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n)) %>%
+  slice_max(n, n = 10)
+```
+
+**Based on this, the 10 most common words in *Pride & Prejudice* are fairly short and not very descriptive, since they are articles, conjunctions, or a variation of "to be" in some tense. These words also do not exceed 3 letters in length.**
+
+------------------------------------------------------------------------
+
+### Question 3: (4 pts)
+
+After getting the words by themselves, we will want to get rid of the stop words with the `SMART` lexicon:
+
+```{r}
+# Recall the SMART lexicon
+SMARTstops <- stop_words %>% 
+    filter(lexicon == "SMART")
+```
+
+Split each line in `book` into words with `unnest_tokens()` (like you did in Question 2) and use one of the joining function to get rid of stop words. Call the resulting dataset `words_books`.
+
+```{r}
+# create new dataset for text in Pride and Prejudice after removing SMART words
+words_book <- book %>%
+                 unnest_tokens(word, text) %>%
+                 anti_join(SMARTstops, by = "word")
+  
+```
+
+Find the 10 most common words in `words_book` and display those in a word cloud. Do you notice any pattern in those words?
+
+```{r}
+# find 10 most common words in words_book and display as a word cloud
+words_book %>%
+  group_by(word) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n)) %>%
+  slice_max(n, n = 10)
+  
+wordcloud(words_book$word, scale = c(5, 0, 5), max.words = 10, colors = brewer.pal(8, "Dark2"))
+```
+
+**After finding the 10 most common words in 'words_book' and displaying them in a word cloud, we can see that the majority of these words refers to a character's first name (e.g. Jane, Elizabeth), their surname (e.g. Bingley, Darcy, Bennet), or their position in society (e.g. lady, miss, mrs). This is a marked difference compared to the output in the previous question, which contains words that didn't pertain to the story at all.**
+
+------------------------------------------------------------------------
+
+### Question 4: (5 pts)
+
+Let's take a look at the sentiments associated with words in the book and how these sentiments change as the story goes. We will consider positive/negative words from the `sentiments` object:
+
+```{r}
+# Sentiments lexicon
+head(sentiments)
+```
+
+Follow those steps to keep track of the sentiments as the story goes:
+
+1.  Use a joining function to only keep the words in `words_book` that are associated with either a positive/negative sentiment.
+
+2.  Find the number of words with positive and negative sentiment per chapter. *Hint: use group_by() with two variables.*
+
+3.  Use a pivot function to have the number of positive words and negative words in separate columns.
+
+4.  Find the proportion of words with a positive sentiment.
+
+5.  Create a `ggplot` with `geom_line()` and `geom_smooth()` to represent the proportion of words with a positive sentiment across the chapters.
+
+How do the sentiments evolve as the story goes?
+
+```{r}
+# create a plot showing positive sentiment across the chapters
+words_book %>%
+  inner_join(sentiments, by = "word") %>%
+  group_by(sentiment, chapter) %>%
+  summarise(n = n()) %>%
+  pivot_wider(names_from = sentiment, 
+              values_from = n) %>%
+  mutate(prop_pos = positive/(positive + negative)) %>%
+  ggplot(aes(x = chapter, y = prop_pos)) +
+  geom_line() +
+  geom_smooth()
+  
+```
+
+**If we think of *Pride & Prejudice* as a three-act book, then we can see that the sentiment starts out slight positive and stays slightly positive throughout the first act, which is about the first 20 chapters. During the second act (chapters 21-45), the sentiment starts getting more negative with the sentiment reaching a minimum around chapter 45. It should be noted, however, that the sentiment at this point is still slightly above 50%, indicating that there is an equal amount of positive and negative sentiment at the low point in the novel. The third act (chapters 45-61), though, shows a marked improvement in positive sentiment with the conclusion of the novel having a slightly higher sentiment compared to the beginning of the novel. This is due to the various plotlines being resolved.**
+
+------------------------------------------------------------------------
+
+### Formatting: (2 pts)
+
+Comment your code, write full sentences, and knit your file!

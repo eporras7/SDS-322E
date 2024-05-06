@@ -1,0 +1,262 @@
+---
+title: "Lab 11"
+output:
+  html_document: default
+  pdf_document: default
+date: "2023-04-09"
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, error = FALSE,
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options = list(max.print=100))
+set.seed(2022-11-04)
+
+# Edit the file starting below
+```
+
+
+## Background
+
+According to the 2020 [State of Global Air Report](https://www.stateofglobalair.org) from the Health Effects Institute,
+
+> Air pollution was the 4th leading risk factor for early death worldwide in 2019, surpassed only by high blood pressure, tobacco use, and poor diet. [Air pollution continues] to exceed the impacts of other widely recognized risk factors for chronic disease like obesity (high body-mass index), high cholesterol, and malnutrition.           
+
+In the United States, outdoor air pollution is regulated by the Environmental Protection Agency, which sets National Ambient Air Quality Standards for major air pollutants. In 2012, the EPA set a standard that restricted the annual average level of particle pollution (PM2.5) to be no more than 12 $\mu$g/m$^3$. While the majority of U.S. counties at that time had pollution levels under that level, many counties were still above the standard and had to find ways to lower their PM2.5 levels.
+
+One challenge with monitoring pollution levels in the United States is that monitors are expensive to operate and maintain so we can only a few of them in each major city. That means, there are a lot of locations that are not monitored and therefore we do not know what the levels of pollution are. One way we can address this problem is to build a **prediction model** for particle pollution (PM2.5) to predict pollution levels were we do not have monitors.
+
+### Data
+
+For this lab, we will use data that were originally collected by researchers at the Johns Hopkins Bloomberg School of Public Health. In the dataset, each row represents a monitor location in the U.S. where PM2.5 is measured and each column represents a variable collected about that location. The variables in the dataset are
+
+| Variable Name | Description | Example Value |
+|:---------------|:-------------|:-------------|
+| value | Annual level of PM2.5 in $\mu$g/m$^3$ (this will be the **outcome variable**) | 8.87 $\mu$g/m$^3$ |
+| state | State name where monitor is located | Texas |
+| zcta | ZIP code where monitor is located | 78613 |
+| lat | Latitude coordinate of monitor location | 30.5 degrees
+| lon | Longitude coordinate of monitor location | -97.9 degrees
+| pov | Percentage of ZIP code population (where monitor is located) living in poverty | 4.3%
+| zcta_pop | Population of ZIP code where monitor is located (based on 2010 Census) | 65,099
+| CMAQ | Computer model estimate of PM2.5 levels | 8.64 $\mu$g/m$^3$
+
+In our data set, the `value` column indicates the PM2.5 monitor annual average for 2008 in mass of fine particles/volume of air for 876 monitors located in counties across the United States. The units are micrograms of fine particulate matter (PM) that is less than 2.5 micrometers in diameter per cubic meter of air - mass concentration ($\mu$g/m$^3$). 
+
+In addition to the other features in the dataset, there is a variable called `CMAQ` which contains estimates of PM2.5 from a computer model known as the Community Multi-Scale Air Quality (CMAQ) model. This is a sophisticated physics-based model that can estimate PM2.5 levels without the need for monitoring data. While this is a useful tool to have, it is not always accurate in predicting PM2.5 levels at all locations. However, it may be useful as part of a larger prediction model.
+
+
+
+## Lab
+
+### Enter the names of the group members here: EJ Porras, Michael Minton, YJ Chung
+
+**This assignment is due by the end of the lab. Only one student in the group submits a pdf file on Gradescope.**
+
+*For all questions, include the R commands/functions that you used to find your answer (show R chunk). Answers without supporting code will not receive credit. Write full sentences to describe your findings.*
+
+In this lab you will explore the PM2.5 dataset for the United States and build 
+
+1. A linear regression model for predicting annual average PM2.5 at a location in the U.S.
+
+2. A logistic regression model for predicting whether a location is in violation of the U.S. EPA's PM2.5 standard (i.e. greater than 12 $\mu$g/m$^3$).
+
+First, let's load the data and any packages we will need.
+
+```{r}
+## If working on your own computer, remember to install new packages with install.packages("name") in the console
+library(tidyverse)
+
+dat <- read_csv("https://github.com/rdpeng/stat322E_public/raw/main/data/pollution.csv")
+```
+
+We can take a quick look at the top of the data frame.
+
+```{r}
+dat %>% 
+        sample_n(10)
+```
+
+
+
+## Question 1 (3 pts)
+
+Which state has the largest number of PM2.5 monitors in their state?
+
+```{r}
+## find state with largest number of PM2.5 monitors
+dat %>%
+  group_by(state) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n)) %>%
+  slice_max(n, n = 1)
+```
+**California has the largest number of PM2.5 monitors with 85 monitors.**
+
+Take the average of the PM2.5 values within each state. Which state in the U.S. has the highest average PM2.5 levels? Which state has the lowest average PM2.5 levels? 
+
+```{r}
+## find states with highest and lowest average PM2.5 levels
+dat %>%
+  group_by(state) %>%
+  summarise(avg_level = sum(value) / n()) %>%
+  slice(c(which.min(avg_level), which.max(avg_level)))
+```
+
+**Maine has the lowest average PM2.5 levels with 5.583784 ** $\mu$g/m$^3$ **, while West Virginia has the highest average PM2.5 levels with 13.379866** $\mu$g/m$^3$ **.**
+
+
+## Question 2 (4 pts)
+
+We can build a prediction model for PM2.5 using the variables that we have in this dataset. In order to do this properly, we will split the dataset into a **training** dataset and a **test** dataset. 
+
+* The training dataset will be all of the locations outside the state of Texas. 
+* The test dataset will be all of the locations inside the state of Texas. 
+
+Create two data frames: One called `train_dat` and another called `test_dat`. Use the `filter()` function on the `dat` data frame in order to create these new data frames. 
+
+```{r}
+## create training and test data
+train_dat <- dat %>%
+  filter(state != "Texas")
+
+test_dat <- dat %>%
+  filter(state == "Texas")
+```
+
+
+Fit a regression model using `value` as the outcome and the remaining variables as predictors. However, for this model do NOT use the `state`, or `zcta` variables as predictors. Create an R object called `fit` to store the fitted regression model.
+
+Use the `summary()` function on the `fit` object and check the residual standard error and the R-squared values. How well does the model perform on the training dataset?
+
+```{r}
+## create fitted regression model using value as object and remaining variables are predictors
+fit <- lm(value ~ lat + lon + pov + zcta_pop + CMAQ, data = train_dat)
+summary(fit)
+```
+
+**The residual standard error and the R-squared value for this model are 2.275 and 0.2366, respectively. Since the model we used only seems to predict about 23.66% of the variability in the data, the model doesn't seem to perform very well on the training set.**
+
+Use your test dataset `test_dat` and the `predict()` function to make predictions using the test data. Compare your predicted values with the observed monitor values by calculating the root mean-squared error (RMSE). How does the RMSE compare to what you expected to see?
+
+```{r}
+## make predictions using test data
+predict(fit, newdata = test_dat)
+
+test_dat %>%
+  mutate(predictions = predict(fit, test_dat)) %>%
+  summarise(rmse = sqrt(mean((value - predictions) ^ 2)))
+```
+
+**Since the RMSE is less than the 2, it means that the model is a good predictor of PM2.5 levels in Texas. This isn't surprising considering that there are 49 states in the training set and there isn't anything that distinguishes PM2.5 levels in Texas compared to the rest of the United States.**
+
+
+
+
+## Question 3 (3 pts)
+
+Create a new variable called `violation` using the `mutate()` function. The new variable is 1 if the location has a value of PM2.5 (in the `value` column) that is in violation of the national standards and is 0 if that location is not in violation. Call the new data frame `datv`. You can use the `ifelse()` function for this, as in
+
+```{r, echo=FALSE}
+datv <- dat %>% 
+        mutate(violation = ifelse(value > 12, 1, 0))
+```
+
+where you can replace the `????` with a logical statement indicating that the `value` column is in violation of the national standards.
+
+Across all the locations in the dataset, what is the average level of PM2.5?
+
+```{r}
+## find average level of PM2.5 across all locations in dataset
+datv %>%
+  summarise(avg_level = mean(value))
+```
+
+**The average level of PM2.5 across all locations in the dataset is 10.80781** $\mu$g/m$^3$ **.**
+
+
+Using your newly created `violation` variable, what percentage of all of the locations in the dataset are in violation of the national PM2.5 standards? 
+
+```{r}
+## find percentage of locations in dataset in violation of national PM2.5 standards
+datv %>%
+  summarise(percent_violation = sum(violation == 1) / n())
+```
+
+**Of all the locations in the dataset, 32.19178% of locations are in violation of the national PM2.5 standards.**
+
+
+
+## Question 4 (3 pts)
+
+We can build a classification model to predict whether a given location is in violation of the national ambient air quality standards. Using the `violation` variable as the outcome, build a logistic regression model using the `glm()` function with `family = binomial`. Store the results of the `glm()` model fit in an object called `gfit`.  For this model, do NOT include the `value` or `zcta` variables in your logistic regression model.
+
+Look at the coefficient for `pov` (percent of ZIP code living in poverty) in the model. Does `pov` have a positive or negative relationship with being in violation of the national standards? 
+
+```{r}
+## create classification to determine if location is in violation of national PM2.5 standards
+gfit <- glm(violation ~ lat + lon + pov + zcta_pop + CMAQ, data = datv, family = "binomial")
+summary(gfit)
+```
+
+**POV has a positive relationship with being in violation of the national standards since the coefficient in the glm classification is positive. The variable pov is also statistically significant at the 0.001 level.**
+
+
+## Question 5 (4 pts)
+
+We can see how well our logistic regression model predicts whether a monitoring location is in violation of national standards by computing the ROC curve. Create a new column in the `datv` data frame called `prediction` with the predictions from the logistic regression. Remember to use `type = "response"` when using the `predict()` function on your `gfit` object.
+
+
+```{r}
+## save predictinos from logit regression in datv
+datv <- datv %>%
+  mutate(prediction = predict(gfit, type = "response"))
+```
+
+Now plot the ROC curve and compute the area under the curve (AUC) for the model. How well does the model perform?
+
+
+```{r}
+library(plotROC)
+library(pROC)
+
+## plot the ROC curve for the models
+obj <- roc(datv$violation, datv$prediction)
+plot(obj)
+
+auc <- auc(obj)
+auc
+```
+
+**The AUC for the ROC curve is 0.7435, so this indicates that the model is performing pretty well in predicting whether or not a monitoring location is in violation of national PM2.5 standards.**
+
+
+
+## Question 6 (3 pts)
+
+Consider the four hypotheses that were posed at the beginning of the lab. How did the results from your data analysis compare with what you originally expected? Of the four hypotheses?
+
+Were there any results from the data that agreed with what you originally expected? If so, state which hypotheses are in agreement. Are you more confident in those hypotheses that agreed with the data, or do you have other questions about the data themselves?
+
+**For the first hypothesis, we originally expected that 30% to 35% of all locations would be in violation of national PM2.5 standards, which aligned with the 32.19178% that we found in Q3. The analysis also corroborated the initial conjectures about the relationship between the percentage of people in poverty and violation of PM2.5 levels and whether or not the model performance for Texas will be less than 2.**
+
+
+Were there any results from the data were unexpected? If so, state which hypotheses disagreed with the data. Why do you think your original expectations were in disagreement with the data? (Feel free to speculate here.)
+
+**The one finding that I was surprised about was that the highest levels of PM2.5 occurred in West Virginia and not in California. Looking back on it, this is not surprising considering the majority of West Virginia's economy centers around coal mining, which obviously is not conducive to maintaining low PM2.5 levels.**
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

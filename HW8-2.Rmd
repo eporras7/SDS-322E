@@ -1,0 +1,265 @@
+---
+title: "HW 8"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,  
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options = list(max.print=100))
+
+# Edit the file starting below
+```
+
+### Enter your name and EID here: EJ Porras, ejp2488
+
+**You will submit this homework assignment as a pdf file on Gradescope.**
+
+*For all questions, include the R commands/functions that you used to find your answer (show R chunk). Answers without supporting code will not receive credit. Write full sentences to describe your findings.*
+
+We will use the following packages. If you get an error loading one of these packages you may need to install it with `install.packages()`.
+
+```{r, message = FALSE}
+# Load packages
+library(tidyverse)
+library(kknn)
+library(plotROC)
+library(tidymodels)
+```
+
+------------------------------------------------------------------------
+
+We will revisit the Pokemon dataset for this homework.
+
+## Question 1: (2 pts) 
+
+Let's re-download the data to start from fresh and recode the variable `Legendary`:
+
+```{r}
+# Download data from GitHub
+pokemon <- read_csv("https://raw.githubusercontent.com/laylaguyot/datasets/main/pokemon.csv") %>% 
+    mutate(Legendary = factor(ifelse(Legendary, "Legendary", 
+                                     "Not Legendary"))) %>% 
+    mutate(Legendary = fct_relevel(Legendary, "Not Legendary"))
+## (NOTE: Tidymodels requires classification outcome to be a factor)
+
+# Take a look 
+head(pokemon)
+```
+
+In the last assignment, you tried linear and logistic regression and (hopefully) found that these two models had a similar performance. It turns out that the logistic regression model fitted to the complete dataset had an AUC = 0.8581. Let's see how a logistic regression would be able to predict the `Legendary` status of "new" pokemons using a 10-fold cross-validation:
+
+```{r}
+## Make this example reproducible by setting a seed
+set.seed(322)
+
+## Create the recipe
+rec <- pokemon %>% 
+    recipe(Legendary ~ Attack + HP) 
+
+## Create the model
+model <- logistic_reg() %>% 
+    set_engine("glm") %>% 
+    set_mode("classification")
+
+## Create the workflow
+wf <- workflow() %>% 
+    add_recipe(rec) %>% 
+    add_model(model)
+
+## Create 10 folds from the dataset
+folds <- vfold_cv(pokemon, v = 10)
+
+## Run cross validation with the model
+res <- fit_resamples(wf, resamples = folds)
+
+## Show performance metrics
+res %>% 
+    collect_metrics()
+```
+
+How does the average AUC presented here compare to the AUC of our `pokemon_log` model trained on the entire data? What does it indicate about the logistic regression model?
+
+**The average AUC presented here of 0.8670906 is slightly higher than the AUC of the pokemon_log model that was trained on the entire data of 0.8581. This indicates that the logistic regression model with 10-fold cross-validation is doing a better job at correcting classifying Legendary and non-Legendary Pokemon (i.e. more true positives, fewer false positives) than the logistic regression model that looks at the entire dataset.**
+
+------------------------------------------------------------------------
+
+## Question 2: (3 pts) 
+
+Another classifier we can consider to predict `Legendary` status from `HP` and `Attack` is using the k-nearest neighbors (kNN). Fit the kNN model with 5 nearest neighbors and save the results to an object called `pokemon_kNN`. How does this model make a prediction for each pokemon (i.e., what output do we get when using the function `predict()`)?
+
+```{r}
+## Create the recipe
+rec2 <- pokemon %>%
+  recipe(Legendary ~ Attack + HP)
+
+## Create the model
+model2 <- nearest_neighbor(neighbors = 5) %>% 
+    set_engine("kknn") %>% 
+    set_mode("classification")
+
+## Create workflow
+workflow2 <- workflow() %>%
+  add_recipe(rec2) %>%
+  add_model(model2)
+
+## Fit the model on the full training dataset using the `fit()` function
+pokemon_kNN <- fit(workflow2, pokemon)
+
+pokemon$prediction <- predict(pokemon_kNN, pokemon)
+pokemon$prediction
+```
+
+**By implementing a k-nearest neighbors model to the Pokemon dataset, the model makes a prediction about whether a Pokemon is Legendary or Not Legendary by looking at the Legendary status of the 5 nearest Pokemon to it, with the idea being that objects close to each other take on similar values. Consequently, when you use 'predict', you get a vector of length 800 that takes on a value of "Legendary" or "Not Legendary."**
+
+
+------------------------------------------------------------------------
+
+## Question 3: (3 pts) 
+
+Use the `pokemon_kNN` model to build a ROC curve for the model using `geom_roc()`. 
+NOTE: In order to use `geom_roc()` you will need to convert the `Legendary` variable into a numeric variable where 0 = "Not Legendary" and 1 = "Legendary".
+
+```{r}
+## Create the data for doing model predictions
+dat_model <- rec %>% 
+    prep(pokemon) %>% 
+    bake(new_data = NULL)
+
+## Make model predictions using `dat_model`; convert Legendary variable to 0/1; make ROC curve plot
+dat_model <- dat_model %>%
+  bind_cols(predict(object = pokemon_kNN, type = "prob", dat_model)) %>%
+  mutate(Legendary = recode(Legendary, "Legendary" = 1, "Not Legendary" = 0))
+  
+ggplot(dat_model, aes(d = Legendary))+
+  geom_roc(aes(m = .pred_Legendary), col="orange")+
+  labs(x = "True Positive Rate", 
+       y = "False Positive Rate", 
+       title = "ROC Curve for kNN Pokemon Classification Model")
+
+```
+
+------------------------------------------------------------------------
+
+## Question 4: (4 pts)
+
+Perform a 10-fold cross-validation with the `pokemon_kNN` model to get an unbiased estimate of the AUC of the model
+
+```{r}
+## Run 10-fold cross validation and print out performance metrics
+
+pokemon["Legendary"] <- as.factor(ifelse(pokemon$Legendary == "Legendary", 1, 0))
+
+# Perform cross-validation
+folds <- vfold_cv(pokemon, v = 10)
+model_fit <- fit_resamples(workflow2, resamples = folds)
+
+## Show performance metrics
+model_fit %>%
+  collect_metrics()
+```
+
+How does the AUC compare to the logistic regression model when predicting `Legendary` status on "new" data? What does it indicate about our k-NN model?
+
+**The AUC of the kNN model is 0.8232, which is less than the AUC of the logit model of 0.86. This indicates that the kNN classification model is less accurate at predicting the Legendary status of any given Pokemon.**
+
+------------------------------------------------------------------------
+
+## Question 5: (3 pts) 
+
+Let's focus on the `pokemon_kNN` model trained on a random 9/10 of the data and then tested on the remaining 1/10. We plot the decision boundary: the blue boundary classifies points inside of it as *Legendary* and points outside as *Not Legendary*. Describe where the false positive cases and the false negative cases are in the plot (indicate if they are inside/outside the decision boundary and what they mean).
+
+```{r}
+# Make this example reproducible by setting a seed
+set.seed(322)
+
+# reset Pokemon data
+pokemon <- read_csv("https://raw.githubusercontent.com/laylaguyot/datasets/main/pokemon.csv") %>% 
+    mutate(Legendary = factor(ifelse(Legendary, "Legendary", 
+                                     "Not Legendary"))) %>% 
+    mutate(Legendary = fct_relevel(Legendary, "Not Legendary"))
+
+# Split data into train and test sets
+pokemon_split <- initial_split(pokemon, prop = 0.9)
+train <- training(pokemon_split)
+test <- testing(pokemon_split)
+
+# Fit the model on the train data
+rec <- train %>% 
+    recipe(Legendary ~ Attack + HP)
+model <- nearest_neighbor(neighbors = 5) %>% 
+    set_engine("kknn") %>% 
+    set_mode("classification")
+wf <- workflow() %>% 
+    add_recipe(rec) %>% 
+    add_model(model)
+pokemon_kNN <- wf %>% 
+    fit(data = train)
+
+# Make a grid for the graph to layout the contour geom
+grid <- tibble(expand.grid(Attack = seq(min(pokemon$Attack),
+                                        max(pokemon$Attack),
+                                        length.out = 100),
+                           HP = seq(min(pokemon$HP),
+                                    max(pokemon$HP),
+                                    length.out = 100)))
+
+## Make predictions on this grid
+pgrid <- pokemon_kNN %>% 
+    extract_fit_parsnip() %>% 
+    augment(new_data = grid) %>% 
+    mutate(p = `.pred_Legendary`)
+
+# Use this grid to predict legendary status
+pgrid %>% 
+  ggplot(aes(Attack, HP)) + 
+  # Only display data in the train set
+  geom_point(aes(Attack, HP, color = as.factor(Legendary)),
+             data = train) + 
+  # Draw the decision boundary
+  geom_contour(aes(z = p), breaks = 0.5) +
+  # Labels
+  labs(title = "Decision Boundary on the Train Set", 
+       color = "Legendary status")
+```
+
+**Here, the false positives are the red points (non-Legendary Pokemon) inside the blue decision boundaries. When this occurs, it means that the Pokemon is falsely predicted to be Legendary because it shares similar HP and Attack to Legendary Pokemon, but are not actually classified as such due to other considerations. The most likely factor is due to deficient stats in the other departments like Defense, Special Defense, Special Attack, and Speed. On the other hand, the false negatives are the blue points (Legendary Pokemon) outside of the blue decision boundary. When this occurs, the model predicts that they are not Legendary Pokemon when they are in reality.**
+
+------------------------------------------------------------------------
+
+## Question 6: (3 pts) 
+
+Now, represent the same decision boundary but with the test set. *Hint: use the last piece of the code from the previous question.*
+
+```{r}
+# represent the decision boundary using the test set
+pgrid %>% 
+  ggplot(aes(Attack, HP)) + 
+  # Only display data in the train set
+  geom_point(aes(Attack, HP, color = Legendary),
+             data = test) + 
+  # Draw the decision boundary
+  geom_contour(aes(z = p), breaks = 0.5) +
+  # Labels
+  labs(title = "Decision Boundary on the Test Set", 
+       color = "Legendary status")
+
+```
+
+Comparing how the decision boundary performs on the training set versus the test set, describe why the kNN model might not perform very well on the test set.
+
+**In comparing the performance of the decision boundary on the training and test sets, the kNN model might not perform very well on the test set because there are 3 Legendary Pokemon in the test set, and they all possess mediocre HP and Attack stats, both in the test set and overall dataset. Since the kNN classification looks at the Legendary status of the 5 observations closest to a given point, the model cannot eliminate the problem of false negatives. To improve the performance on the test set, there would need to be more observations of Legendary Pokemon with high Attack and HP stats such that the classification model can parse out false negatives.**
+
+------------------------------------------------------------------------
+
+## Formatting: (2 pts)
+
+Comment your code, write full sentences, and knit your file!
+
+------------------------------------------------------------------------
+
+```{r, echo=F}
+## DO NOT DELETE THIS BLOCK!
+Sys.info()
+```

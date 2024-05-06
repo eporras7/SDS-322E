@@ -1,0 +1,129 @@
+---
+title: "Lab 9"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,  
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options = list(max.print=100))
+
+# Edit the file starting below
+```
+
+### Enter the names of the group members here: EJ Porras, Michael Minton, YJ Chung
+
+**This assignment is due by the end of the day. Only one student in the group submits a pdf file on Gradescope.**
+
+*For all questions, include the R commands/functions that you used to find your answer (show R chunk). Answers without supporting code will not receive credit. Write full sentences to describe your findings.*
+
+Let's load the appropriate packages for today:
+
+```{r, warning=FALSE}
+library(tidyverse)
+```
+
+The dataset for this lab contains information about the chances of admissions into graduate school:
+
+```{r}
+# Upload data from GitHub
+admissions <- read_csv("https://raw.githubusercontent.com/laylaguyot/datasets/main//Admission_Predict.csv") %>%
+  # Rename variables for easier manipulation 
+  rename(GRE_Score = `GRE Score`, TOEFL_Score = `TOEFL Score`,
+         University_Rating = `University Rating`, Admission_Chance = `Chance of Admit`)
+
+# Look at a sample of this data
+admissions %>%
+  sample_n(size = 10)
+```
+
+This dataset contains the following variables: GRE Scores (out of 340), TOEFL Scores (out of 120), 
+University Rating (out of 5), Statement of Purpose (`SOP`) and Letter of Recommendation (`LOR`) Strength (out of 5), Undergraduate GPA (out of 10), Research Experience (either 0 or 1), Chance of Admission (ranging from 0 to 1).
+
+The goal of the lab is to make predictions for graduate admission based on other features of a student's application.
+
+------------------------------------------------------------------------
+
+### Question 1: (2 pts)
+
+Pick one variable to predict a student's `Admission_Chance`. What potential relationship between this variable and a student's `Admission_Chance` do you anticipate? Answer that question before exploring the data!
+
+**Ceteris paribus, we expect a positive, linear relationship between TOEFL score and a student's chance for admission. That is, a higher TOEFL score will make it more likely for a student to be admitted to a particular institution.**
+
+------------------------------------------------------------------------
+
+### Question 2: (4 pts)
+
+Visualize the relationship between the predictor you chose in the previous question and the response variable. Does your visualization match the relationship that you had anticipated?
+
+```{r}
+# create visualization of relationship between TOEFL score and admission chance
+admissions %>%
+  ggplot(aes(x = TOEFL_Score, y = Admission_Chance)) +
+  geom_point() +
+  labs(title = "Relationship Between TOEFL Score and Chance of Admission", 
+       x = "TOEFL Score", 
+       y = "Chance of Admission")
+```
+
+**This scatterplot matches the relationship that I expected from the previous question. Here, we can see a positive association between the predictor (TOEFL Score) and response variables (Chance of Admission).**
+
+------------------------------------------------------------------------
+
+### Question 3: (4 pts)
+
+Fit a linear regression model to predict a student's `Admission_Chance` based on the predictor you chose in the first question. Write the expression of the linear model and report the performance of this model.
+
+```{r}
+# fit linear regression model to predict Admission_Chance based on TOEFL Score
+fit1 <- lm(formula = Admission_Chance ~ TOEFL_Score, data = admissions)
+summary(fit1)
+```
+
+**The linear regression model of TOEFL_Score on Admission_Chance is the following: Admission_Chance = -1.2734005 + 0.0185993 * TOEFL_Score. This model says that a one-point increase in TOEFL Score will increase a student's chance of admission by 1.86%. The RMSE for the model is 0.08725 (i.e. the average difference between the model's predicted values and the actual values are 0.08725), and the R-squared statistic is 0.6266 (i.e. the model explains 62.66% of the variability in the data). Consequently, this model seems to be pretty accurate, though there could be some improvements to its performance.**
+
+------------------------------------------------------------------------
+
+### Question 4: (4 pts)
+
+Now choose two other predictors to estimate a student's `Admission_Chance`. Visualize the relationship between each predictor you just chose and the response variable. Does there appear to be a relationship between each predictor and the response variable?
+
+```{r}
+# show relationship between GRE score and Admission_Chance, as well as SOP and Admission_Chance
+admissions %>%
+  ggplot(aes(x = GRE_Score, y = Admission_Chance)) +
+  geom_point() +
+  labs(title = "Relationship Between GRE Score and Chance of Admission", 
+       x = "GRE Score", 
+       y = "Chance of Admission")
+
+admissions %>%
+  ggplot(aes(x = SOP, y = Admission_Chance)) +
+  geom_point() +
+  labs(title = "Relationship Between Statement of Purpose Rating and Chance of Admission", 
+       x = "Statement of Purpose Rating", 
+       y = "Chance of Admission")
+```
+
+**Based on the above visualizations, we can see that there appears to be positive, linear relationships between GRE_Score and Admission_Chance, as well as SOP and Admission_Chance.**
+
+------------------------------------------------------------------------
+
+### Question 5: (4 pts)
+
+Fit a linear regression model to predict a student's `Admission_Chance` based on the two predictors you chose in the previous question. Is this model better than the one with one predictor? Why or why not?
+
+```{r}
+# fit linear regression model to predict Admission_Chance based on GRE_Score and SOP
+fit2 <- lm(formula = Admission_Chance ~ GRE_Score + SOP, data = admissions)
+summary(fit2)
+```
+
+**The linear regression model of GRE_Score and SOP on Admission_Chance is the following: Admission_Chance = -1.8673269 + 0.0077330 * GRE_Score + 0.0417052 * SOP. This model says that a one-point increase in GRE Score will increase a student's chance of admission by 0.77%, ceteris paribus. Additionally, an increase in SOP rating by one mark will increase a student's likelihood of admission by 4.17%, all other variables held constant The RMSE for the model is 0.07853 (i.e. the average difference between the model's predicted values and the actual values are 0.07853), and the R-squared statistic is 0.6983 (i.e. the model explains 69.83% of the variability in the data). Since the RMSE is lower than the model in question 3 and the R-squared statistic is higher than the found in question 3, this model is better than the one with only one predictor since we include more variables of interest. With this interest, we can attribute a student's likelihood of admission based on GRE score and SOP rating, with all other variables being found in the error term, whereas all other variables of interest other than TOEFL_Score was put in the error term in the model with only one variable.**
+
+------------------------------------------------------------------------
+
+### Formatting: (2 pts)
+
+Comment your code, write full sentences, and knit your file!

@@ -1,0 +1,180 @@
+---
+title: "Lab 10"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,  
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options = list(max.print=100))
+
+# Edit the file starting below
+```
+
+### Enter the names of the group members here: EJ Porras, Michael Minton, YJ Chung
+
+**This assignment is due by the end of the lab. Only one student in the group submits a pdf file on Gradescope.**
+
+*For all questions, include the R commands/functions that you used to find your answer (show R chunk). Answers without supporting code will not receive credit. Write full sentences to describe your findings.*
+
+Let's load the appropriate packages for today:
+
+```{r, warning=FALSE}
+library(tidyverse)
+library(plotROC)
+library(caret)
+```
+
+Upload the dataset for this lab from GitHub:
+
+```{r}
+# Upload data from GitHub
+Insurance <- read_csv("https://raw.githubusercontent.com/laylaguyot/datasets/main//Insurance.csv")
+```
+
+This dataset includes 85 predictors that measure demographic characteristics for 5,822 individuals. The response variable is `Purchase`, which indicates whether or not a given individual purchased a caravan insurance policy. 
+
+The goal of the lab is to predict if an individual is likely to purchase a caravan insurance policy or not, depending on some demographic information.
+
+------------------------------------------------------------------------
+
+### Question 1: (2 pts)
+
+In the `Insurance` dataset, what proportion of individuals purchased a caravan insurance policy?
+
+```{r}
+# find proportion of individuals who purchased caravan insurance policy
+Insurance %>%
+  summarise(prop_caravan = sum(Purchase == "Yes") / nrow(Insurance))
+```
+
+**In the Insurance dataset, 5.977327% of individuals purchased a caravan insurance policy.**
+
+------------------------------------------------------------------------
+
+### Question 2: (5 pts)
+
+Recode the response variable `Purchase` as 0 if an individual did not purchase a caravan insurance policy, and 1 if they did. 
+
+```{r}
+# recode Purchase to be a dummy variable
+Insurance <- Insurance %>%
+  mutate(Purchase = ifelse(Purchase == "Yes", 1, 0))
+```
+
+Fit a logistic regression model to predict the response based on all 85 predictors. Call that model `Insurance_log`.
+
+```{r}
+# fit logit model to predict Purchase based on 85 predictors
+Insurance_log <- glm(Purchase ~ ., data = Insurance, family = "binomial")
+summary(Insurance_log)
+```
+
+Only keep the variable `Purchase` in `Insurance`, then save the probabilities of purchasing a caravan insurance policy as a variable called `predictions` and find the associated `predicted` outcome (taking the value 1 if prediction > 0.5, and the value 0 otherwise).
+
+```{r}
+# save logit predictions and create new column for predicted outcomes from model
+Insurance %>%
+  select(Purchase) %>%
+  mutate(predictions = predict(Insurance_log, Insurance, type = "response"), 
+         predicted_outcome = ifelse(predictions > 0.5, 1, 0))
+```
+
+Build the confusion matrix for the logistic regression model. What do you notice?
+
+```{r}
+# create confusion matrix for logit model
+library(broom)
+
+confusion_matrix <- augment(Insurance_log, Insurance) %>% 
+    mutate(predict_prob = plogis(.fitted)) %>% 
+    mutate(pred_class = ifelse(predict_prob > 0.5, 1, 0)) %>% 
+    select(Purchase, pred_class)
+
+xtabs(~ Purchase + pred_class, data = confusion_matrix) %>% 
+    addmargins()
+```
+
+**While it appears that there is a greater quantity of false negatives, I notice that there are a relative higher proportion of false positives in the dataset. Of the 15 observations that are predicted to have bought the caravan insurance, 8 of them end up not purchasing the caravan insurance.**
+
+------------------------------------------------------------------------
+
+### Question 3: (3 pts)
+
+Let's consider a k-nearest neighbor (kNN) classifier. Why do you think we should consider scaling our variables when using such a classifier? 
+
+**We should scale the variables when using such a classifier because it relies on computing the distances between observations. kNN chooses the k-nearest neighbors and then assigns a class or predicts a value for a new observation. Without scaling the data, the performance of the distance-based model will be heavily disrupted by the disparity in magnitude.**
+
+Scale all variables in `Insurance` except `Purchase` and save the resulting dataset as `Insurance_scaled`. (HINT: You can use `mutate()` and `across()` to do this if you want.)
+
+```{r}
+# scale variables and save as new dataset
+Insurance_scaled <- Insurance %>%
+  mutate(across(where(is.numeric) & !c(Purchase), scale)) 
+```
+
+------------------------------------------------------------------------
+
+### Question 4: (5 pts)
+
+Apply a k-nearest neighbor classifier with `k = 5` on `Insurance_scaled`. Call that model `Insurance_kNN`.
+
+```{r}
+# apply kNN on Insurance_scaled
+Insurance_kNN <- knn3(Purchase ~ ., Insurance_scaled, k = 5)
+```
+
+Only keep the variable `Purchase` in `Insurance_scaled`, then save the proportions of purchasing a caravan insurance policy as a variable called `predictions` and find the associated `predicted` outcome (taking the value 1 if prediction > 0.5, and the value 0 otherwise).
+
+```{r}
+# save proportion of caravan insurance policy purchases and find predicted outcome
+pred <- Insurance_scaled %>%
+  select(Purchase) %>%
+  mutate(predictions = predict(Insurance_kNN, Insurance_scaled, type = "prob"), 
+         predicted_outcome = ifelse(predictions > 0.5, 1, 0))
+```
+
+Build the confusion matrix for the kNN classifier. 
+
+```{r}
+# create confusion matrix for kNN classifier
+truth <- c(sum(Insurance_scaled$Purchase == 1), sum(Insurance_scaled$Purchase == 0))
+pred_vec <- c(sum(pred$predicted_outcome == 1), sum(pred$predicted_outcome == 0))
+
+truth
+pred_vec
+
+truth_act <- c(1, 0)
+pred_exp <- c(1, 0)
+
+table(truth_act = sum(Insurance_scaled$Purchase == 1),
+      pred_exp = sum(pred$predicted_outcome == 1))
+
+table(truth_act = c(sum(Insurance_scaled$Purchase == 1), 
+                    sum(Insurance_scaled$Purchase == 0)), 
+      pred_exp = c(sum(pred$predicted_outcome == 1), 
+                   sum(pred$predicted_outcome != 1)))
+```
+
+Suppose that the company would like to visit potential customer but since there are some costs involved in doing so, they only try to sell insurance to customers who are likely to buy it. According to the confusion matrix, what is the success rate for selling a caravan insurance policy?
+
+**According to the confusion matrix, the success rate for selling a caravan insurance policy is .**
+
+------------------------------------------------------------------------
+
+### Question 5: (3 pts)
+
+Build a ROC curve to compare the logistic regression model to the kNN classifier in predicting the purchase of a caravan insurance policy. How do those compare?
+
+```{r}
+# create ROC curves for logit model and kNN classifier
+```
+
+**The kNN classifier seems to worse in predicting the purchase of a caravan insurance policy.**
+
+------------------------------------------------------------------------
+
+### Formatting: (2 pts)
+
+Comment your code, write full sentences, and knit your file!

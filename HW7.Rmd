@@ -1,0 +1,176 @@
+---
+title: "HW 7"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,  
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options = list(max.print=100))
+
+# Edit the file starting below
+```
+
+### Enter your name and EID here: EJ Porras, ejp2488
+
+**You will submit this homework assignment as a pdf file on Gradescope.**
+
+*For all questions, include the R commands/functions that you used to find your answer (show R chunk). Answers without supporting code will not receive credit. Write full sentences to describe your findings.*
+
+We will use the packages `tidyverse` and  `plotROC` for this assignment.
+
+```{r, message = FALSE}
+# Load packages
+library(tidyverse)
+library(plotROC)
+library(ggplot2)
+```
+
+------------------------------------------------------------------------
+
+## Question 1: (4 pts)
+
+We will use the `pokemon` dataset for this assignment:
+
+```{r}
+# Upload data from GitHub
+pokemon <- read_csv("https://raw.githubusercontent.com/laylaguyot/datasets/main//pokemon.csv")
+
+# Take a look 
+head(pokemon)
+```
+
+Recode the variable `Legendary`, taking a value of 0 if a pokemon is not legendary and a value of 1 if it is. Save the resulting data as `my_pokemon`.
+
+```{r}
+# recode Legendary boolean values to dummy variables of 0 and 1
+my_pokemon <- pokemon %>%
+  mutate(across(where(is.logical), as.numeric))
+```
+
+Visualize the linear relationship between `Attack` and `HP` (hit points) for each legendary status. *Hint: consider the binary variable as a factor using `as.factor()`.* Do `Attack` and `HP` seem to predict Legendary status? Comment with what you see in the visualization.
+
+```{r}
+# create scatter plot of Attack and HP by Legendary Status
+my_pokemon %>%
+  ggplot(aes(x = Attack, y = HP)) +
+  geom_point() +
+  facet_wrap(vars(as.factor(Legendary)))
+```
+
+**There is a positive, linear relationship between Attack and HP for both Legendary and non-Legendary Pokemon. Legendary Pokemon, however, have higher Attack and HP stats than their non-Legendary counterparts. We can see this in the scatter plot as most Legendary Pokemon have at least 100+ in either Attack or HP, whereas there are a lot of non-Legendary Pokemon that don't have 100+ Attack or HP.**
+
+------------------------------------------------------------------------
+
+## Question 2: (2 pt)
+
+Let's predict `Legendary` status using a linear regression model with `Attack` and `HP` in `my_pokemon`. Fit this model, call it `pokemon_lin`, and write its equation.
+
+```{r}
+# create linear regression to estimate Legendary status using Attack and HP
+pokemon_lin <- lm(formula = Legendary ~ Attack + HP, data = my_pokemon)
+summary(pokemon_lin)
+```
+
+**The linear regression model to estimate the Legendary status of a Pokemon using its Attack and HP stats is the following: Legendary = -0.2201775 + 0.0023563 * Attack + 0.0016644 * HP.**
+
+------------------------------------------------------------------------
+
+## Question 3: (3 pts)
+
+Choose a pokemon whose name starts with the same letter as yours. Take a look at its stats and, using the equation of your model from the previous question, predict the legendary status of this pokemon, "by hand" (multiplying the predictors with the estimated coefficients):
+
+```{r}
+# predict the legendary status of Escavalier by hand
+my_pokemon %>%
+  filter(Name == "Escavalier") %>%
+  select(Number, Name, HP, Attack, Legendary)
+
+-0.2201775 + 0.0023563 *  135 + 0.0016644 * 70
+```
+
+Check your answer by using `predict()` with the argument `newdata =`:
+
+```{r}
+# check by-hand calculation using predict
+test <- data.frame(Attack = 135, HP = 70)
+predict(pokemon_lin, newdata = test) 
+```
+
+Was your pokemon predicted to be legendary (i.e. is the prediction close to 0 or 1)? Why or why not? Does it match character's Legendary status in dataset?
+
+**The Pokemon that I chose (Escavalier) was not predicted to be Legendary, since the calculated Legendary status from the on-hand calculation and the predicted value is 0.2144333, which is less than 0.5 and closer to 0. This matches the Legendary status in the dataset, as Escavalier has a Legendary status of 0 (non-Legendary).**
+
+------------------------------------------------------------------------
+
+## Question 4: (2 pts)
+
+We can measure how far off our predictions are from reality with residuals. Use `resid()` to find the residuals of each pokemon in the dataset then find the sum of all residuals. What is the sum of all the residuals. Why does it make sense? 
+
+```{r}
+# find the sum of all the residuals in pokemon_lin
+sum(resid(pokemon_lin))
+```
+
+**The sum of all residuals in the dataset is -2.553513e-15, which is practically 0. This makes intuitive sense because we fit the linear regression such that we minimize the residual sum of squares, which can only happen where the sum of all residuals is 0.**
+
+------------------------------------------------------------------------
+
+## Question 5: (2 pts)
+
+A logistic regression would be more appropriate to predict `Legendary` status since it can only take two values. Fit this new model with `Attack` and `HP`, call it `pokemon_log`, and write its equation. *Hint: the logit form is given by the R output.*
+
+```{r}
+# create logistic regression model of Legendary status using Attack and HP
+pokemon_log <- glm(Legendary ~ Attack + HP, data = my_pokemon, family = "binomial")
+summary(pokemon_log)
+```
+
+**The logistic regression output to predict Legendary status based on a Pokemon's Attack and HP stats is the following: logit(Legendary) = -7.659078 + 0.032901 * Attack + 0.025923 * HP.**
+
+------------------------------------------------------------------------
+
+## Question 6: (2 pts)
+
+According to this new model, is the pokemon you chose in question 3 predicted to be legendary (i.e. probability is greater than 0.5)? Why or why not? *Hint: you can use predict() with the arguments `newdata =` and `type = "response"`.*
+
+```{r}
+# predict legendary status of Escavalier in the logit model
+predict(pokemon_log, test, type = "response") 
+```
+
+**According to the logit model, the probability that Escavalier is a Legendary Pokemon is 0.1973573, which is less than 0.5 (the cutoff that determines whether the model belives a Pokemon is Legendary or not). This means that the model does not predict Escavalier to be a Legendary Pokemon.**
+
+------------------------------------------------------------------------
+
+## Question 7: (3 pts)
+
+Let's compare the performance of these two models using ROC curves. On the same plot, represent the ROC curve for predicting `Legendary` status based on the predictions from the linear regression in blue and another ROC curve based on the predictions from the logistic regression in orange.
+
+```{r}
+# compare linear and logit models using ROC curves
+# lin_pred <- predict(pokemon_lin) 
+# log_pred <- predict(pokemon_log, type = "response") 
+
+# ggplot(my_pokemon, aes(m = lin_pred, d = log_pred)) +
+#  geom_roc()
+
+```
+
+How do these two models compare?
+
+**Plotting the ROC curves for the linear and logistic regressions presents some interesting insights. The linear and logistic ROC curves intersect at a predicted legendary status of 0.4.**
+
+------------------------------------------------------------------------
+
+## Formatting: (2 pts)
+
+Comment your code, write full sentences, and knit your file!
+
+------------------------------------------------------------------------
+
+```{r, echo=F}
+## DO NOT DELETE THIS BLOCK!
+Sys.info()
+```
