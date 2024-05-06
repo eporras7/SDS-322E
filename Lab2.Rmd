@@ -1,0 +1,178 @@
+---
+title: "Lab 2"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,  error = TRUE,
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options = list(max.print=100))
+
+# Edit the file starting below
+```
+
+### Enter the names of the group members here: 
+EJ Porras
+Michael Minton
+YJ Chung
+
+**This assignment is due by the end of the lab. Only one student in the group submits a pdf file on Gradescope.**
+
+*For all questions, include the R commands/functions that you used to find your answer (show R chunk). Answers without supporting code will not receive credit. Write full sentences to describe your findings.*
+
+In this lab, you will explore the dataset `diamonds` contained in the package `ggplot2`. Let's first upload that package:
+
+```{r, warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+```
+
+The dataset consists of prices and quality information from about 54,000 diamonds. The first few observations are listed below.
+
+```{r}
+diamonds
+```
+
+
+This dataset is very large so it's not possible to examine every observation. But you can take a random sample of 10 rows using the `sample_n()` function.
+
+```{r}
+diamonds %>% 
+        sample_n(10)
+```
+Try taking a random sample of 15 rows from the dataset and check if anything seems out of the ordinary in those observations.
+
+```{r}
+# take a sample of 15 rows from diamonds dataset
+diamonds %>% 
+        sample_n(15)
+```
+
+Here is a summary of the variables in the dataset.
+
+```{r}
+summary(diamonds)
+```
+
+### Question 1: (1 pt)
+
+Save the dataset `diamonds` in the environment and name it using the initials of all team members in alphabetical order. *Remember that you can get more details about the dataset by running `?diamonds` in the console.*
+
+```{r}
+# save diamonds dataset as variable of initials of team members in alphabetical order
+ycmmep <- diamonds
+
+```
+
+------------------------------------------------------------------------
+
+### Question 2: (4 pts)
+
+Use this template of a `ggplot` command to create a histogram of `price`:
+
+```{r}
+# Histogram of cemmpy using ggplot
+ycmmep %>% 
+        ggplot(aes(x = price)) + 
+        geom_histogram() 
+```
+
+Use this template of a `base R` command to create a histogram of `price`:
+
+```{r}
+# Histogram of cemmpy using base R
+hist(ycmmep$price)  
+```
+
+Comparing the two histograms, how much greater is the largest value labeled on the x-axis in the `ggplot` histogram than the largest x-axis value labeled on the `base R` histogram?
+
+**The largest value labeled on the x-axis in the 'ggplot' histogram, while the largest value labeled on the "base R' histogram is 15000, even though there are some bars on the histogram that stretch past 15000. Additionally, the 'ggplot' histogram has 30 bins with an adjusted bin width, while the 'base R' histogram has 19 bins with a bin width of 1000.**
+
+------------------------------------------------------------------------
+
+### Question 3: (3 pts)
+
+Use this template of a `ggplot` command to create a bar graph of `clarity`:
+
+```{r}
+# Bar graph of ycmmep using ggplot
+ycmmep %>% 
+        ggplot(aes(x = clarity)) + 
+        geom_bar() 
+```
+
+Use this template of a `base R` command to create a bar graph of `clarity`:
+
+```{r}
+# Bar graph of ycmmep using base R
+barplot(table(ycmmep$clarity))  
+```
+
+Using these plots, what is the most common category of `clarity`?
+
+**Using the bar graphs from ggplot and base R, the most common category of 'clarity' is Sl1 with VS2 being a close second. On the clarity scale, the majority of the diamonds in the dataset appear to be subpar to average quality in terms of clarity.**
+
+------------------------------------------------------------------------
+
+### Question 4: (4 pts)
+
+An important parameter for histograms is the number of bars that you use in the plot. This is set using the `bins` argument to `geom_histogram()`. The default is `bins = 30`. What happens if you use just 5 bins for the histogram of `price`? Or what about using 45? How do the histogram look different from each other?
+
+```{r}
+# Histogram of cemmpy using ggplot with bins = 5
+ycmmep %>% 
+        ggplot(aes(x = price)) + 
+        geom_histogram(bins = 5) 
+
+# Histogram of cemmpy using ggplot with bins = 45
+ycmmep %>% 
+        ggplot(aes(x = price)) + 
+        geom_histogram(bins = 45) 
+```
+
+**When I set the histogram to have 5 bins, the resulting graph shows that the majority of diamonds are worth $0-$4,000 with a good amount of diamonds worth $4,000-$8,000. However, when the bin width is 4000, it becomes hard to determine the breakdown of prices within that large interval. When I set the histogram to have 45 bins, we can see the further stratification that was an issue with the previous histogram. The resulting histogram shows that there are quite a number of diamonds worth approximately $500-$1000. With such a large amount of bins and the range of price in US dollars from $326-$18,823, it becomes a little difficult to figure out the exact bin width (as it's not exactly the most intuitive).**
+
+------------------------------------------------------------------------
+
+### Question 5: (3 pts)
+
+We actually discussed a function in lecture that can create a graph for each category of a variable using `ggplot`. Using `ggplot` with that function, create a histogram of price for each category of clarity.
+
+```{r}
+# create a histogram of price for each category of clarity
+ycmmep %>%
+  ggplot(aes(x=price)) +
+  geom_histogram() + 
+  facet_wrap(vars(clarity))
+```
+
+
+------------------------------------------------------------------------
+
+### Question 6: (3 pts)
+
+Choose one question about that the data that you want to investigate (could be the one from the pre-Lab Quiz) and make a plot that addresses that question. How would you interpret the results of the plot?
+
+
+```{r}
+# create a histogram of price based on each of the cut qualities
+ycmmep %>%
+  ggplot(aes(x = price)) +
+  geom_histogram() +
+  facet_wrap(vars(cut)) +
+  labs(x = "Price (in $)") +
+  labs(y = "Count") +
+  labs(title = "Histograms of Price Levels for Each Cut Quality")
+
+```
+
+**Similar to question 5, we looked to investigate how the price of a particular diamond varied based on the cut quality it was deemed to be. Based on this, we can see that a lot of the diamonds in the data set were deemed to be at least of "Very Good" quality, with a good amount of the diamonds of "Ideal" quality. Still, for each of the cut qualities, the majority of the diamonds were sold in the $0 to ~$650 range. We presume that this is due to the weight of the diamond (carat), but further investigation will be needed to get a definitive answer.**
+
+
+------------------------------------------------------------------------
+
+
+### Formatting: (2 pts)
+
+Comment your code, write full sentences, and knit your file!

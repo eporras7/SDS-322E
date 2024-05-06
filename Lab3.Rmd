@@ -1,0 +1,156 @@
+---
+title: "Lab 3"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,  
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options = list(max.print=100))
+
+# Edit the file starting below
+```
+
+
+
+### Enter the names of the group members here: EJ Porras, Michael Minton, YJ Chung
+
+**This assignment is due by the end of the day Only one student in the group submits a pdf file on Gradescope.**
+
+*For all questions, include the R commands/functions that you used to find your answer (show R chunk). Answers without supporting code will not receive credit. Write full sentences to describe your findings.*
+
+In this lab, you will explore the dataset `netflix` that you will download from `GitHub.` Let's first load the packages we will need to complete this lab:
+
+```{r, warning=FALSE}
+# If working on your own computer, remember to install new packages with install.packages("name") in the console
+library(tidyverse) 
+```
+
+Then let's download our dataset using `read_csv()` (you must be connected to the Internet to do this):
+
+```{r}
+# Upload data from GitHub
+netflix <- read_csv("https://raw.githubusercontent.com/rdpeng/stat322E_public/main/data/netflix.csv")
+```
+
+This dataset contains information about Netflix movies: title, genre, year of release, running time (in minutes), IMDB score, and language.
+
+```{r}
+# Take a quick look with tail() which shows the last 6 observations
+tail(netflix)
+```
+
+The goal of the lab is to investigate how some characteristics of a movie affects its IMDB score, focusing on some genres.
+
+------------------------------------------------------------------------
+
+### Question 1: (3 pts)
+
+Explore the `Genre` variable with a `ggplot` visualization. *Make sure to add labels, you can also add some colors to make it prettier!* What are the most/least common genres?
+
+```{r}
+# create a bar graph of movie genres in 'netflix'
+netflix %>%
+  ggplot(aes(y = Genre)) +
+  geom_bar() +
+  labs(title = "Frequency of Genres on Netflix", 
+       x = "Frequency")
+```
+
+**The most common genre in 'netflix' are documentaries, while the least common genre in the dataset are musicals.**
+
+------------------------------------------------------------------------
+
+### Question 2: (2 pts)
+
+You will focus on a subset of genres: each group member selects a different genre. Filter the `netflix` dataset to only keep the genres you selected. Save the filtered dataset in your environment with a new name by assigning it to a new object. You will work with the filtered dataset for the next two questions.
+
+```{r}
+# filter dataset 'netflix' to include only documentaries, action movies, and crime movies
+data_modified <- netflix %>%
+                  filter(Genre %in% c("Drama", "Action", "Crime"))
+```
+
+------------------------------------------------------------------------
+
+### Question 3: (4 pts)
+
+Using the filtered dataset from Question 2, explore the `IMDB` variable with a `ggplot` visualization. *Make sure to add labels, you can also add some colors to make it prettier!* Describe the shape, center, and spread of the distribution, including appropriate statistics. 
+
+```{r}
+# create a histogram comparing IMDB scores across filtered genres from question 2
+data_modified %>%
+  ggplot(aes(x = IMDB)) +
+  geom_histogram() +
+  facet_wrap(vars(Genre))
+  labs(title = "IMDB Score Distribution for Documentaries, Action Films, and Crime Movies", 
+       x = "IMDB Score",
+       y = "Count")
+```
+
+**Action: This distribution is skewed left with the median score ranging from a high 5 to a mid 6. The majority of action movies are scored in the 6 range with a decent amount taking on scores from a high 4 to a mid 5. The mean IMDB score for action movies is less than the median IMDB score for action movies.**  
+**Crime: This distribution is skewed left with the median score having a value in the mid 6's. The spread of IMDB scores for crime movies is fairly normal and teetering close to uniform due to the low number of movies in the dataset, with a majority of crime movies being rated in the 6 to low 7 range. Consequently, the mean seems to be very close to the median.**
+**Drama: This distribution is skewed left with the median score having a value in the low 6 to mid 6 area. With a narrow spread due to the majority of values, the mean of IMDB scores is slightly less than the median of IMDB scores.**
+
+------------------------------------------------------------------------
+
+### Question 4: (3 pts)
+
+Working with the other members of your Lab group, investigate the relationship between `IMDB` and `Genre` with a `ggplot` visualization. *Make sure to add labels, you can also add some colors to make it prettier!* Does there seem to be a difference in IMDB across genres? Justify your answer by referring to your visualizations.
+
+```{r}
+# create a histogram of relationship between IDMB and Genre
+netflix %>%
+  ggplot(aes(x = IMDB)) +
+  geom_histogram() +
+  facet_wrap(vars(Genre))
+  labs(title = "IDMB Score Distribution by Movie Genre",
+       x = "IMDB Score",
+       y = "Count")
+```
+
+**There seems to be a big difference in IMDB scores across the various genres. On average, documentaries tend to be more highly regarded than every other movie genre on Netflix. Drama, like documentaries also seem to be scored fairly well compared to other genres like Comedy, whose distribution looks like a bell curve with the big number of comedy movies being rated as average (i.e. 5). Romance movies always seem to be rated around a 6 give or take a whole point.**
+
+------------------------------------------------------------------------
+
+### Question 5: (2 pts)
+
+Using the complete dataset, consider what other characteristics may influence the IMDB score: select one of the other variables in the dataset. Write a research question to explore the relationship between the three variables. *For example, (create a question of your own, don't use this one!): How do genre and language affect IMDB score?*
+
+**Our research question is the following: how do genre and runtime affect IMDB score?**
+
+------------------------------------------------------------------------
+
+### Question 6: (3 pts)
+
+Create a visualization to answer your research question. Include a catchy headline to your viz and interpret what you see! *There are many ways to represent 3 variables: using different colors, shapes, size, faceting, ...* 
+
+```{r}
+# create a scatterplot exploring effect of genre and runtime on IMDB score
+netflix %>% 
+        ggplot(aes(x = IMDB, y = Runtime, color = Genre)) + 
+        geom_point(size = 1) +
+        labs(title = "Relationship between Movie Runtime and IMDB Score",
+             x = "IMDB Score",
+             y = "Runtime of Movie (in mins)",
+             color = "Movie genre")
+```
+
+**Looking at this scatterplot between movie runtime, year, and IMDB score, we can see that the majority of films in the Netflix database typically lasts around 100 minutes, as seen by the cluster around y=100. There are a decent amount of films whose runtime is significantly lower than the average, seen through the dots from 50 minutes and below time. On the other hand, there aren't a ton of films that last longer than 150 minutes. When we consider both year and runtime as it relates to IMDB score, we can see that the majority of films are rated from a 5 to 7 on IMDB. Still, we can see that Documentaries and Drama films are rated much more favorably compared to other genres. **
+
+------------------------------------------------------------------------
+
+### Question 7: (1 pt)
+
+How do the results of Questions 5 and 6 compare to what you answered in the Pre-Lab Quiz on which variables are related to IMDB score? Did the data match your expectations or not? If the data differed from your expectation, provide a sentence with a possible explanation for why the data differed from what you expected.
+
+
+**For the most part, the results from Questions 5 and 6 aligned with the answers provided in the Pre-Lab Quiz. We can see that Genre had the biggest effect on IMDB score, with some genres being rated higher (i.e. Documentary, Drama) more than other genres. I am a little surprised, however, that there isn't some sort of linear relationship between runtime and IMDB score. Beforehand, I believed that reviewers would appreciate shorter runtimes because of the concision and clear vision for a film, and that would reflect in the data. Certainly, most of the films with shorter runtimes tended to do receive scores in the 6 range, but it doesn't signficantly differ much from the films with runtimes in the 100 minute range. The lack of an effect of runtime on IMDB score may be because of how the content in the film is presented (i.e. is the plot cliche?, actors' performances) than the length of the movie itself.**
+
+------------------------------------------------------------------------
+
+
+### Formatting: (2 pts)
+
+Comment your code, write full sentences, and knit your file!

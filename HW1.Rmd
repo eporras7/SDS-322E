@@ -1,0 +1,196 @@
+---
+title: "HW 1"
+output:
+  html_document: default
+  pdf_document: default
+tags: concept, strategy
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,  
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options = list(max.print=100))
+
+# Edit the file starting below
+library(tidyverse)
+```
+
+### Enter your name and EID here: EJ Porras, ejp2488
+
+**You will submit this homework assignment as a pdf file on Gradescope.**
+
+*For all questions, include the R commands/functions that you used to find your answer (show R chunk). Answers without supporting code will not receive credit. Write full sentences to describe your findings.*
+
+------------------------------------------------------------------------
+
+## Part 1: (11 pts)
+
+The dataset `mtcars` was extracted from the 1974 Motor Trend US magazine, and comprises fuel consumption and other aspects of automobile design and performance for different cars (1973-74 models). Look up the documentation for this data frame with a description of the variables by typing `?mtcars` **in the console** pane.
+
+### Question 1: (2 pt)
+
+Take a look at the first 6 rows of the dataset by using an `R` function in the code chunk below. Do you know about any (or all) of these cars?
+
+```{r}
+# look at the first 6 rows of dataset mtcars
+head(mtcars)
+```
+
+**I do not know of the any of these cars present in the first six rows of the dataset, but I am familiar with the car manufacturer Mazda.**
+
+------------------------------------------------------------------------
+
+### Question 2: (2 pts)
+
+How many rows and columns are there in this data frame in total?
+
+```{r}
+# find number of rows and columns in total data frame
+nrow(mtcars)
+ncol(mtcars)
+
+```
+
+**There are 32 rows in the data frame and 11 columns in the data frame.**
+
+------------------------------------------------------------------------
+
+### Question 3: (1 pt)
+
+Save `mtcars` in your environment and name it as your `eid`. From now on, use this new object instead of the built-in dataset.
+
+```{r}
+# assign mtcars to my eid
+ejp2488 <- mtcars
+
+```
+
+**In this piece of code, I save the dataset 'mtcars' in my envirommental and assigned to a new variable that is my UTeid.**
+
+------------------------------------------------------------------------
+
+### Question 4: (2 pts)
+
+When is your birthday? Using indexing, grab the value of `mpg` that corresponds to the day of your birthday (should be a number between 1 and 31).
+
+```{r}
+# find the value of mpg corresponding to the day in my birthday (7/27/02)
+ejp2488$mpg[27]
+```
+
+**This piece of code returns the value of mpg in the 27th row (the day of my birthday) of the dataset.**
+
+------------------------------------------------------------------------
+
+### Question 5: (2 pts)
+
+Using logical indexing, count the number of rows in the dataset where the variable `mpg` takes on values greater than 30.
+
+```{r}
+# returns count of rows where mpg > 30
+ejp2488 %>% 
+  filter(mpg > 30) %>%
+  count()
+```
+
+**After filtering the dataset ejp2488 to only keep vehicles that have a mpg greater than 30, we find that there are only 4 vehicles that satisfies this condition.**
+
+------------------------------------------------------------------------
+
+### Question 6: (2 pts)
+
+Let's create a new variable called `kpl` which converts the fuel efficiency `mpg` in kilometers per liter. Knowing that 1 mpg corresponds to 0.425 kpl, complete the following code and calculate the max kpl:
+
+```{r}
+# convert mpg to kpl, save to variable kpl, and then find the max kilometers per liter
+ejp2488$kpl <- ejp2488$mpg * 0.425
+max(ejp2488$kpl)
+```
+
+**After converting the mpg metric and saving that result within a new variable called kpl, we find that the maximum kilometers per liter is 14.4075.**
+
+------------------------------------------------------------------------
+
+## Part 2: (6 pts)
+
+Let's quickly explore another built-in dataset: `airquality` which contains information about daily air quality measruements in New York, May to September 1973. 
+
+### Question 7: (2 pts)
+
+Calculate the mean `Ozone` (in ppb). Why does it make sense to get this answer? *Hint: take a look at the column `Ozone` in the dataset.*
+
+```{r}
+# provides the mean Ozone measurement in the dataset 'airquality'
+mean(airquality$Ozone)
+```
+
+**When trying to find the mean Ozone value, we get a return value of NA since there are some cells that are unfilled, therefore making it impossible to calculate the mean.**
+
+------------------------------------------------------------------------
+
+### Question 8: (2 pts)
+
+Look at the documentation for the function `mean()` by running `?mean` **in the console**. What argument should be used to find the mean value that we were not able to get in the previous question? What type of values does that argument take?
+
+**After looking at the documentation for the function mean(), we should na.rm to TRUE (as it takes on value of TRUE or FALSE) to strip the NA values before finding the true mean. Without doing so, mean() undervalues the true measures since those extra observations are included in the mean calculation.**
+
+------------------------------------------------------------------------
+
+### Question 9: (2 pts)
+
+Sometimes the R documentation does not feel complete. We wish we had more information or more examples. Find a post online (include the link) that can help you use that argument in the `mean()` function. Then finally find the mean ozone!
+
+```{r}
+# determine mean Ozone measurement in New York from 5/1973-9/1973 while discarding unfilled values
+mean(airquality$Ozone, na.rm = TRUE)
+```
+
+**After consulting this source online (https://www.tutorialspoint.com/r/r_mean_median_mode.htm) and implementing it here, we find that the mean Ozone value from May 1973 to September 1973 is 42.12931 ppb (parts per billion).**
+
+------------------------------------------------------------------------
+
+## Part 3: (5 pts)
+
+The Internet clothing retailer Stitch Fix has developed a new model for selling clothes to people online. Their basic approach is to send people a box of 5--6 items of clothing and allow them to try the clothes on. Customers keep (and pay for) what they like while mailing back the remaining clothes. Stitch Fix then sends customers a new box of clothes typically a month later.
+
+A critical question for Stitch Fix to consider is "Which clothes should the send to each customer?" Since customers do not request specific clothes, Stitch Fix has to come up with 5--6 items on its own that it thinks the customers will like (and therefore buy). In order to learn something about each customer, they administer an **intake survey** when a customer first signs up for the service. The survey has about 20 questions and the data is then used to predict what kinds of clothes customers will like. In order to use the data from the intake survey, a statistical algorithm must be built in order to process the customer data and make clothing selections.
+
+Suppose you are in charge of building the intake survey and the algorithm for choosing clothes based on the intake survey data. 
+
+
+### Question 10: (2 pts)
+
+What kinds of questions do you think might be useful to ask of a customer in an intake survey in order to better choose clothes for them? What kinds of data would be most valuable? See if you can come up with at least 5 items.
+
+**During the intake survey, it would be useful to ask for the following information like age, height, weight, type of job, and location. Asking for age could be more important because age might be correlated to adventurousness in personal style. Someone's who older might be more conservative and stay to classics, while a youthful individual may experiment more. Height and weight are important in order to recommend the right sizes to the user, as various outfitters have their own way of measuring things. Thus, it would be nice for the recommendation model to consider the sizing beforehand. Lastly, occupation and location are important because there may be professional or climate requirements for their style. Someone who works in a corporate setting cannot have a wardrobe of graphic T-shirts, nor can someone in the Northeast live without a parka or winter boots.**
+
+### Question 11: (3 pts)
+
+In addition to the technical challenges of collecting the data and building this algorithm, you must also consider the impact the algorithm may have on the people involved. What potential negative impact might the algorithm have on the customers who are submitting their data? Consider both the data being submitted as well as the way in which the algorithm will be used when answering this question.
+
+
+**One potential downside is that you are handling personal data, so there may be issues of data security. After all, it is the user's information, and it is Stitch Fix's responsibility to protect and use it in a professional and ethical manner. After all, no one likes getting spammed with predatory advertisements all because they got interested in getting new clothes from Stitch Fix. Secondly, such information puts people into a box that may be hard to escape from. People are defined by more than numbers like their height and weight, and their personalities cannot be extracted by those metrics. It also presumes that they do have relevant information on those parameters For example, what if someone interested in Stitch Fix works a nontraditional job or is unemployed? If they are, it makes it harder for the model to be successful. Even if the recommendation model does work, it may sometimes work too well and may not allow for people to try new things that are radically different. While Stitch Fix does send an assortment of items, it may start sending less and less new ideas if it works well.**
+
+
+
+
+
+
+
+------------------------------------------------------------------------
+
+## Formatting: (3 pts)
+
+Knit your file! Into pdf directly or into html. 
+
+Is it working? If not, try to decipher the error message (look up the error message, consult websites such as [stackoverflow](https://stackoverflow.com/) or [crossvalidated](https://stats.stackexchange.com/). 
+
+Once it knits in html, click on `Open in Browser` at the top left of the window pops out. Print your html file into pdf from your browser. Any issue? Ask your classmates or TA!
+
+------------------------------------------------------------------------
+
+```{r, echo=F}
+## DO NOT DELETE THIS BLOCK!
+sessionInfo()
+```

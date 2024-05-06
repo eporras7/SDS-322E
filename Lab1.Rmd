@@ -1,0 +1,137 @@
+---
+title: "Lab 1"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,  
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options=list(max.print=100))
+
+# Edit the file starting below
+```
+
+### Enter the names of the group members below: (2 pts)
+EJ Porras
+YJ Chung
+Michael Minton
+
+
+
+**This assignment is due by the end of the lab. Only one student in the group submits a pdf file on Gradescope.**
+
+*For all questions, include the R commands/functions that you used to find your answer (show R chunk). Answers without supporting code will not receive credit. Write full sentences to describe your findings.*
+
+In this lab, you will explore the dataset `faithful`. It contains information about eruptions of the Old Faithful geyser in Yellowstone National Park. The first few observations are listed below.
+
+```{r}
+library(dplyr)
+library(datasets)
+head(faithful)
+```
+
+### Question 1: (2 pts)
+
+How many rows are there in this dataset? How many columns? Try using the `glimpse()` function from the `tidyverse`. In which units are the variables reported? You will need more information about the dataset to answer that last question: run `?faithful` **in the console**. *Note: using `?` in your Markdown document might prevent you from knitting or will open the documentation in a new tab.*
+
+```{r}
+# determine the number of rows and columns in dataset
+nrow(faithful)
+ncol(faithful)
+```
+
+*There are 272 rows and 2 columns in the dataset. The variable eruptions is a numeric variable that denotes the eruption time in minutes, while waiting is a numeric variable that denotes the waiting time until the next eruption in minutes.*
+
+------------------------------------------------------------------------
+
+### Question 2: (2 pts)
+
+Using the function `summary()` for each variable, find the minimum, maximum, mean, and median values of each variable. Write a sentence to interpret the mean eruption duration and the mean waiting time. 
+
+```{r}
+# determining summary statistics for eruption length and waiting period
+summary(faithful)
+```
+
+*On average, a typical eruption lasts 3.488 minutes and you will wait, on average, 70.9 minutes for the next eruption.*
+
+
+------------------------------------------------------------------------
+
+### Question 3: (2 pts)
+
+Create a histogram of each variable with the function `hist()`. (You can find the help page for `hist()` by calling `?hist` at the console.) Make sure to label axes (`xlab=`) and give a title to the graph (`main=`).
+
+```{r}
+# shows histogram of both eruptions and waiting
+hist(faithful$eruptions, main = "Histogram of Eruption Times", xlab = "Eruption Times (in mins")
+hist(faithful$waiting, main = "Histogram of Waiting Times Between Eruptions", xlab = "Waiting Time Between Eruptions (in mins)")
+
+```
+
+------------------------------------------------------------------------
+
+### Question 4: (2 pts)
+
+Let's do some filtering and logical indexing. What does the code below do?
+
+NOTE: The %>% symbol is equivalent to the |> symbol for piping the output of functions to other functions.
+
+```{r, eval=FALSE}
+faithful %>%
+        filter(waiting > 60) 
+```
+
+*This code filters all of the observations in the dataset faithful and only reports the observations where the waiting time between eruptions lasted longer than 60 minutes.*
+
+------------------------------------------------------------------------
+
+### Question 5: (2 pts)
+
+Using filtering and logical indexing and the function `mean()`, find the mean of the variable `eruptions` when `waiting` is **less than or equal to** 1 hour and the mean of the variable `eruptions` when `waiting` is **more than** 1 hour. Compare the two means.
+
+```{r}
+# determines mean eruption time when waiting period is below or equal to 1 hour
+# and above 1 hour
+faithful %>% 
+  filter(waiting <= 60) %>%
+  summarise(mean_eruptions = mean(eruptions))
+
+faithful %>% 
+  filter(waiting > 60) %>%
+  summarise(mean_eruptions = mean(eruptions))
+```
+
+*When the waiting time is less than or equal to 1 hour, the average eruption lasts 2.005831 minutes. On the other hand, when the waiting time is more than 1 hour, the average length is 4.1385787, which is more than double than the average eruption when the waiting period is less than an hour.*
+
+------------------------------------------------------------------------
+
+### Question 6: (2 pts)
+
+Create a scatterplot using the `plot()` function to explore how the waiting time might affect the eruption duration. Make sure to label axes (`xlab=`, `ylab=`) and give a title to the graph (`main=`). Briefly describe what you notice in this graph.
+
+```{r}
+# creates scatterplot between waiting time and eruption length
+plot(faithful$eruptions, faithful$waiting, main = "Waiting Time vs. Eruption Length", xlab = "Eruption Length (in mins)", ylab = "Waiting Time (in mins)")
+```
+
+*In this scatterplot, we see a positive linear relationship between eruption length and the waiting time between eruptions. Additionally, we also see the data cluster into two groups: short eruptions with short waiting periods (i.e. eruption length < 3 minutes and waiting time < 70 minutes) and long eruptions with long waiting periods (i.e. eruption > 3 minutes and waiting time > 70 minutes).*
+
+### Question 7: (2 pts)
+
+How does the scatterplot that you made in Question 6 compare to the one you selected in the pre-quiz? Does it look similar or different? If the plot looks different from what you selected in the pre-quiz, how would you explain the difference?
+
+*In the pre-lab section, I guessed that there would be a positive, linear relationship between eruption length and waiting time. After creating the scatterplot in question 6, both graphs share a positive, linear relationship between the variables. One thing that surprised me was the clustering into two distinct types of eruptions (short eruption, short waiting time and long eruption, long waiting time). This could potentially be explained by the requirements needed for an eruption to occur. When there is a long eruption, there is more water expelled from underground, meaning that more water needs to fill up underground and hit a high enough pressure for the next eruption to happen. The converse reasoning also holds true for a short eruption. With more reserve water underground, less water is needed to fill up space underground and less time is needed for the water to reach a high enough pressure to erupt.*
+
+
+------------------------------------------------------------------------
+### Formatting: (4 pts)
+
+Knit your file! Into pdf directly or into html. 
+
+Is it working? If not, try to decipher the error message (look up the error message, consult websites such as [stackoverflow](https://stackoverflow.com/) or [crossvalidated](https://stats.stackexchange.com/)). 
+
+Once it knits in html, click on `Open in Browser` at the top left of the window pops out. Print your html file into pdf from your browser. Any issue? Ask your classmates or TA!

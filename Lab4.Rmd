@@ -1,0 +1,139 @@
+---
+title: "Lab 4"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,  
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options = list(max.print=100))
+
+# Edit the file starting below
+```
+
+### Enter the names of the group members here: EJ Porras, Michael Minton, YJ Chung
+
+**This assignment is due by the end of the day Only one student in the group submits a pdf file on Gradescope.**
+
+*For all questions, include the R commands/functions that you used to find your answer (show R chunk). Answers without supporting code will not receive credit. Write full sentences to describe your findings.*
+
+In this lab, you will explore the dataset `starwars` which comes with `dplyr`. Let's first load the `tidyverse` package that contains both `dplyr` and `ggplot2` which we will need today:
+
+```{r, warning=FALSE}
+# If working on your own computer, remember to install new packages with install.packages("name") in the console
+library(tidyverse)
+```
+
+Then let's save the dataset in our environment and take a quick look at it:
+
+```{r}
+# Upload data from GitHub
+starwars <- as_tibble(starwars)
+
+# Take a quick look with glimpse() 
+glimpse(starwars)
+
+# or learn more by running ?starwars in the console
+```
+
+This dataset contains information about Starwars characters: name, height, mass, hair_color, skin_color, eye_color, birth_year, sex, gender, homeworld, species, films, vehicles, starships.
+
+The goal of the lab is to investigate some characteristics of the Starwars characters using `dplyr`.
+
+------------------------------------------------------------------------
+
+### Question 1: (3 pts)
+
+Using `dplyr` core functions, create a new variable in the data frame to calculate Body Mass Index (BMI). BMI is for a height in **meters** and a mass in **kilograms**: 
+
+> BMI = mass / height^2.
+
+Only display the top 5 observations for BMI and just keep relevant information (name, species, height, mass). Who has the highest BMI in the dataset?
+
+```{r}
+# create BMI variable and display top 5 observations for BMI
+starwars %>%
+  mutate(name, BMI = mass / (height/100) ** 2) %>%
+  select(name:mass, species, BMI) %>%
+  slice_max(BMI, n = 5)
+
+```
+
+**Jabba Desilijic Tiure, a Hutt, has the highest BMI in the dataset with a BMI of 443.**
+
+------------------------------------------------------------------------
+
+### Question 2: (3 pts)
+
+Using `dplyr` core functions, find how many characters' names there are per species. Which species contain the two largest numbers of character names?
+
+```{r}
+# find number of character names per species
+starwars %>%
+  group_by(species) %>%
+  count(species)
+```
+
+**Your answer goes here. Write sentences in bold.**
+
+------------------------------------------------------------------------
+
+### Question 3: (3 pts)
+
+Using `dplyr` core functions and `ggplot`, compare the distributions of BMI between the two species found in the previous question using boxplots and simultaneously showing the data with `geom_point()`. Which of the two species seem to have the highest BMI on average? Is that reasonable to make such a comparison?
+
+```{r}
+# your code goes below (make sure to edit comment)
+
+```
+
+**Your answer goes here. Write sentences in bold.**
+
+------------------------------------------------------------------------
+
+### Question 4: (3 pts)
+
+Let's look at who has no hair across planets! 
+
+First, remove the NAs from hair_color. *Hint: use `!` and `is.na()` in a `dplyr` core function.*
+
+Second, find the mean of a logical vector inside `summarize()` to get the proportion of bald characters in **each** homeworld. Call the resulting proportion `pBald`. *Hint: `hair_color == "none"` designates bald characters.*
+
+How many home worlds only host bald characters?
+
+```{r}
+# your code goes below (make sure to edit comment)
+
+```
+
+**Your answer goes here. Write sentences in bold.**
+
+------------------------------------------------------------------------
+
+### Question 5: (4 pts)
+
+Choose one of the research questions proposed by your group members in the Pre-Lab Quiz. Answer your research questions using at least 2 of the 6 `dplyr` core functions and with a `ggplot` visualization. Include a headline to your visualization and interpret what you see!
+
+```{r}
+# your code goes below (make sure to edit comment)
+
+```
+
+**Your answer goes here. Write sentences in bold.**
+
+------------------------------------------------------------------------
+
+### Question 6: (2 pts)
+
+What did you expect the answer to this research question to be before you looked at the data? How does the result compare to what you expected?
+
+**Your answer goes here. Write sentences in bold.**
+
+------------------------------------------------------------------------
+
+### Formatting: (2 pts)
+
+Comment your code, write full sentences, and knit your file!
